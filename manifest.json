@@ -1,0 +1,44 @@
+{
+  "manifest_version": 3,
+  "name": "PaperLens 文献阅读助手",
+  "version": "1.0.0",
+  "description": "略读/精读双模式 AI 论文分析：快速提炼应用场景、核心问题、创新点与方法；精读生成论文框架、核心观点与个人启发，自动整理文献卡片，保存本地或同步 Google 表格/文档。",
+  "minimum_chrome_version": "114",
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "activeTab",
+    "downloads",
+    "clipboardWrite",
+    "scripting"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "sidepanel/sidepanel.html"
+  },
+  "action": {
+    "default_title": "打开文献阅读助手",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_page": "options/options.html",
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content/content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

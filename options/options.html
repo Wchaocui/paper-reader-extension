@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PaperLens 设置</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="page-head">
+      <div class="brand">
+        <span class="logo">📖</span>
+        <div>
+          <h1>PaperLens 文献阅读助手 · 设置</h1>
+          <p class="sub">配置 AI 模型与个人信息后，即可在任意论文网页使用略读 / 精读分析</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- AI 模型 -->
+    <section class="card">
+      <h2>🤖 AI 模型配置</h2>
+      <div class="field">
+        <label for="provider">服务商（推荐使用支持长上下文的模型）</label>
+        <select id="provider"></select>
+        <p class="hint" id="provider-hint"></p>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label for="baseUrl">API Base URL</label>
+          <input id="baseUrl" type="text" placeholder="https://api.example.com/v1">
+        </div>
+        <div class="field">
+          <label for="model">模型名称</label>
+          <input id="model" type="text" placeholder="例如 glm-4.7 / deepseek-chat / gpt-4o">
+        </div>
+      </div>
+      <div class="field">
+        <label for="apiKey">API Key</label>
+        <input id="apiKey" type="password" placeholder="sk-…（仅保存在本地浏览器，不会上传）" autocomplete="off">
+        <p class="hint">Key 只存储在本机 chrome.storage.local，仅在请求时直接发送给服务商。</p>
+      </div>
+      <div class="actions">
+        <button id="btn-test" class="btn">🔌 测试连接</button>
+        <span id="test-result" class="test-result"></span>
+      </div>
+    </section>
+
+    <!-- 研究背景 -->
+    <section class="card">
+      <h2>🧑‍🔬 我的研究背景（用于精读模式「对我的启发」）</h2>
+      <div class="field">
+        <textarea id="userBackground" rows="4"
+          placeholder="例如：我是计算机视觉方向的研究生，目前在做小样本目标检测，关注数据增广与域适应方法，常用数据集 COCO/VOC…&#10;写得越具体，AI 给出的启发越贴合你的课题。"></textarea>
+      </div>
+    </section>
+
+    <!-- Google 同步 -->
+    <section class="card">
+      <h2>🌐 Google 在线表格同步（可选）</h2>
+      <p class="hint" style="margin-top:0">
+        方式一（推荐，全自动）：部署一个 Google Apps Script Web App，把笔记一键写入 Google 表格。
+        <a href="https://script.google.com" target="_blank" rel="noopener">打开 script.google.com</a>，
+        按下方代码创建并部署为「任何人可访问」的 Web App，然后把 URL 粘贴到这里。
+      </p>
+      <details class="gas-code">
+        <summary>📋 查看 Apps Script 代码（点击复制使用）</summary>
+        <pre id="gas-code-block">function doPost(e) {
+  const body = JSON.parse(e.postData.contents);
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const name = body.sheetName || '文献笔记';
+  const sheet = ss.getSheetByName(name) || ss.insertSheet(name);
+  if (sheet.getLastRow() === 0 && body.header) {
+    sheet.appendRow(body.header);
+    sheet.getRange(1, 1, 1, body.header.length).setFontWeight('bold');
+  }
+  (body.rows || []).forEach(function (row) { sheet.appendRow(row); });
+  return ContentService
+    .createTextOutput(JSON.stringify({ ok: true, added: (body.rows || []).length }))
+    .setMimeType(ContentService.MimeType.JSON);
+}</pre>
+        <button id="btn-copy-gas" class="btn sm">复制代码</button>
+      </details>
+      <div class="field">
+        <label for="gasUrl">Apps Script Web App URL（留空则使用"复制 + 打开在线表格"的半自动方式）</label>
+        <input id="gasUrl" type="text" placeholder="https://script.google.com/macros/s/AKfycb…/exec">
+      </div>
+    </section>
+
+    <div class="save-row">
+      <button id="btn-save" class="btn primary">💾 保存设置</button>
+      <span id="save-result" class="test-result"></span>
+    </div>
+
+    <footer class="foot">
+      使用提示：在论文页面点击工具栏 📖 图标打开侧边栏 → 选择略读/精读 → 开始分析 → 保存文献卡片。
+    </footer>
+  </div>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

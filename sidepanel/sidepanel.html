@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PaperLens 文献阅读助手</title>
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-logo">📖</span>
+      <span class="brand-name">PaperLens</span>
+      <span class="brand-sub">文献阅读助手</span>
+    </div>
+    <div class="topbar-actions">
+      <button id="btn-refresh" class="icon-btn" title="重新识别当前页面">⟳</button>
+      <button id="btn-settings" class="icon-btn" title="设置（API / 研究背景 / Google 同步)">⚙</button>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="analyze">📖 阅读</button>
+    <button class="tab" data-tab="notes">🗂 笔记库 <span id="notes-count" class="count-badge" hidden>0</span></button>
+  </nav>
+
+  <main>
+    <!-- ============ 阅读分析页 ============ -->
+    <section id="tab-analyze" class="tab-page">
+
+      <div id="page-card" class="card page-card">
+        <div class="page-card-head">
+          <span class="dot" id="page-dot"></span>
+          <span id="page-host" class="page-host">正在识别当前页面…</span>
+        </div>
+        <div id="page-title" class="page-title">—</div>
+        <div id="page-stats" class="page-stats"></div>
+        <div id="page-abstract" class="page-abstract" hidden></div>
+      </div>
+
+      <div class="card mode-card">
+        <div class="mode-switch" role="tablist">
+          <button class="mode-btn active" data-mode="skim">⚡ 略读</button>
+          <button class="mode-btn" data-mode="deep">🔍 精读</button>
+        </div>
+        <p id="mode-desc" class="mode-desc"></p>
+        <div id="short-text-warning" class="warning" hidden>
+          ⚠️ 当前页面正文较少（可能只是摘要页）。精读建议先打开发表商 HTML 全文页或 arXiv HTML 版（arxiv.org/html/编号）。
+        </div>
+        <button id="btn-analyze" class="btn primary block">
+          <span class="btn-label">⚡ 开始略读分析</span>
+        </button>
+        <div id="progress" class="progress" hidden>
+          <span class="spinner"></span>
+          <span id="progress-text">正在分析…</span>
+        </div>
+      </div>
+
+      <div id="figures-card" class="card" hidden>
+        <div class="card-title-row">
+          <h3>🖼 论文图表</h3>
+          <button id="figures-toggle" class="link-btn">收起</button>
+        </div>
+        <div id="figures-grid" class="figures-grid"></div>
+        <p class="figures-hint">点击图表可在新标签页查看原图（配合下方 AI 分析阅读）</p>
+      </div>
+
+      <div id="result-card" class="card result-card" hidden>
+        <div class="card-title-row">
+          <h3 id="result-title">✨ 分析结果</h3>
+          <div class="title-actions">
+            <button id="btn-copy-result" class="link-btn" hidden>复制</button>
+          </div>
+        </div>
+        <div id="result" class="md-body"></div>
+      </div>
+
+      <div id="meta-form" class="card meta-form" hidden>
+        <h3>📇 文献卡片</h3>
+        <div class="field">
+          <label>标题</label>
+          <input id="f-title" type="text" placeholder="论文标题">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>发表时间</label>
+            <input id="f-date" type="text" placeholder="如 2024-05 / arXiv:2401.12345">
+          </div>
+          <div class="field">
+            <label>出版位置</label>
+            <input id="f-venue" type="text" placeholder="期刊 / 会议 / 预印本平台">
+          </div>
+        </div>
+        <div class="field">
+          <label>作者</label>
+          <input id="f-authors" type="text" placeholder="逗号分隔">
+        </div>
+        <div class="field">
+          <label>网页</label>
+          <input id="f-url" type="text">
+        </div>
+        <div class="field">
+          <label>关键词标签</label>
+          <input id="f-keywords" type="text" placeholder="逗号分隔，AI 会自动填写">
+          <div id="kw-chips" class="chips"></div>
+        </div>
+        <div class="field">
+          <label>一句话总结</label>
+          <input id="f-oneliner" type="text" placeholder="AI 会自动填写，可修改">
+        </div>
+        <div class="field">
+          <label>个人笔记 / 我的启发（选填）</label>
+          <textarea id="f-notes" rows="3" placeholder="读完后的想法、可跟进的实验、与自己课题的关联…"></textarea>
+        </div>
+        <div class="form-actions">
+          <button id="btn-save" class="btn primary">💾 保存到本地笔记库</button>
+          <button id="btn-save-gas" class="btn">💾 保存并同步 Google 表格</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 笔记库页 ============ -->
+    <section id="tab-notes" class="tab-page" hidden>
+
+      <div id="notes-detail" hidden>
+        <button id="btn-back" class="btn ghost sm">← 返回列表</button>
+        <div id="note-detail-body"></div>
+      </div>
+
+      <div id="notes-list-wrap">
+        <div class="card notes-toolbar">
+          <div class="toolbar-row">
+            <select id="export-select" class="select" title="选择导出内容">
+              <option value="md">Markdown 汇总</option>
+              <option value="csv">CSV（Excel）</option>
+              <option value="json">JSON（备份）</option>
+            </select>
+            <button id="btn-export" class="btn sm">📤 导出全部</button>
+            <button id="btn-gas-all" class="btn sm" title="同步到 Google Apps Script 或复制 TSV 后打开在线表格">🌐 同步 Google 表格</button>
+          </div>
+          <div class="toolbar-row">
+            <input id="search-input" class="search" type="search" placeholder="🔍 搜索标题 / 关键词 / 总结…">
+          </div>
+        </div>
+        <div id="notes-list" class="notes-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+  <script type="module" src="sidepanel.js"></script>
+</body>
+</html>
