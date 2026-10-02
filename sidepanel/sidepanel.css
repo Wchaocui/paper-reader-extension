@@ -151,6 +151,7 @@ main { padding: 10px 12px 40px; }
   border-radius: 10px;
   margin-bottom: 10px;
 }
+.mode-switch.mode-switch-3 { grid-template-columns: 1fr 1fr 1fr; }
 .mode-btn {
   border: none;
   background: var(--card);
@@ -168,6 +169,121 @@ main { padding: 10px 12px 40px; }
   font-weight: 600;
 }
 .mode-desc { font-size: 12px; color: var(--text-2); margin: 0 0 10px; }
+
+/* ---------- 审读等级条 ---------- */
+.level-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  background: #f0f4ff;
+  border: 1px dashed #c9d4f6;
+  padding: 4px;
+  border-radius: 9px;
+  margin-bottom: 8px;
+}
+.level-btn {
+  border: none;
+  background: var(--card);
+  border-radius: 7px;
+  padding: 6px 2px;
+  font-size: 11px;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.level-btn.active {
+  background: var(--primary);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(109, 90, 224, 0.35);
+}
+.level-desc { margin: 0 0 8px; color: #4c5a8f; }
+
+/* ---------- 追问对话 ---------- */
+.ask-card .ask-hint { font-size: 11px; color: var(--text-3); }
+.ask-thread { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+.ask-item { display: flex; flex-direction: column; gap: 10px; }
+.ask-q {
+  align-self: flex-end;
+  max-width: 88%;
+  background: linear-gradient(135deg, var(--primary), #4c6ef5);
+  color: #fff;
+  font-size: 12.5px;
+  padding: 7px 11px;
+  border-radius: 12px 12px 3px 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.ask-a {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px 12px 12px 12px;
+  padding: 8px 11px;
+  font-size: 12.5px;
+}
+.ask-a .md-body { font-size: 12.5px; }
+.ask-input-row { display: flex; gap: 6px; }
+.ask-input-row input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 7px 10px;
+  font-size: 12.5px;
+  font-family: inherit;
+  outline: none;
+}
+.ask-input-row input:focus { border-color: var(--primary); }
+.ask-input-row .btn { flex: none; }
+
+/* ---------- 审稿流程图 ---------- */
+.flow-intro p { font-size: 12.5px; color: var(--text-2); margin: 4px 0; }
+.flow-note { background: #fffbe8; border-radius: 8px; padding: 7px 10px; }
+.flow-stages { display: flex; flex-direction: column; }
+.flow-stage {
+  display: flex;
+  gap: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 12px;
+}
+.flow-num {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--primary), #4c6ef5);
+}
+.flow-body { flex: 1; min-width: 0; }
+.flow-body h4 { margin: 4px 0 6px; font-size: 13.5px; }
+.flow-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--primary-strong);
+  background: var(--primary-soft);
+  border-radius: 6px;
+  padding: 1px 6px;
+  margin-left: 4px;
+  vertical-align: 1px;
+}
+.flow-qs { margin: 0 0 8px; padding-left: 18px; }
+.flow-qs li { font-size: 12px; color: var(--text-2); margin: 2px 0; }
+.flow-start { width: 100%; }
+.flow-arrow {
+  text-align: center;
+  color: var(--primary);
+  font-size: 16px;
+  line-height: 26px;
+  font-weight: 700;
+}
 .warning {
   font-size: 12px;
   color: #9a6700;
@@ -370,6 +486,7 @@ main { padding: 10px 12px 40px; }
 }
 .badge.skim { background: #fff4e5; color: #b45309; }
 .badge.deep { background: var(--primary-soft); color: var(--primary-strong); }
+.badge.review { background: #e5f6ee; color: #187046; }
 .note-item .note-oneliner { font-size: 12px; color: var(--text-2); margin-bottom: 6px; }
 .note-item .chips { margin: 0 0 8px; }
 .note-actions { display: flex; gap: 2px; flex-wrap: wrap; }

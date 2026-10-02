@@ -9,7 +9,7 @@ import {
   deleteNote,
   getSettings,
 } from '../lib/storage.js';
-import { buildMessages, extractMetaTail } from '../lib/prompts.js';
+import { buildMessages, extractMetaTail, buildAskMessages, LEVEL_INFO, profileBlock } from '../lib/prompts.js';
 import {
   noteToMarkdown,
   notesToMarkdown,
@@ -30,18 +30,78 @@ const $$ = (sel) => [...document.querySelectorAll(sel)];
 
 const MODE_DESC = {
   skim: '⚡ 略读：只看摘要、图表与结论，快速判断这篇文章值不值得读——输出应用场景、重点问题、创新点、方法。',
-  deep: '🔍 精读：通读全文——输出论文整体框架、问题/方法/发现/结论、核心观点，并结合你的研究背景给出启发。',
+  deep: '📖 精读：通读全文——输出论文整体框架、问题/方法/发现/结论、核心观点，并结合你的研究档案给出启发。',
+  review: '⚖️ 审读：像一个挑剔的同行评审，不总结、只挑刺——每个判断都要求论文证据。用下方等级选择思考深度。',
 };
+
+const FLOW_STAGES = [
+  {
+    num: '①',
+    level: 1,
+    title: '值不值得读？',
+    qs: [
+      '核心问题是什么（不重复摘要）？',
+      '为什么重要？',
+      '真创新：新问题/方法/数据/机制/场景？',
+      '最朴素的本质：最笨的办法是什么？',
+    ],
+  },
+  {
+    num: '②',
+    level: 2,
+    title: '挖出没明说的假设',
+    qs: [
+      '哪条核心假设 fails，文章就没意义？',
+      '因果与相关有没有混淆？',
+      '有没有替代解释能解释同样的结果？',
+    ],
+  },
+  {
+    num: '③',
+    level: 3,
+    title: '挑研究设计的毛病（nitpick）',
+    qs: [
+      '选择偏差/遗漏变量/反向因果/测量偏差？',
+      '样本边界撑得起结论边界吗？',
+      '核心变量怎么测的？换测法结果会变吗？',
+      '控制变量有效吗？',
+    ],
+  },
+  {
+    num: '④',
+    level: 4,
+    title: '划结论的边界',
+    qs: [
+      '显著结果有现实意义吗（非仿真可信度）？',
+      '哪条最 robust？哪条最薄弱？',
+      '有没有作者没讨论的奇怪结果？',
+      '什么情况下结论最可能失败？',
+    ],
+  },
+  {
+    num: '⑤',
+    level: 4,
+    title: '接上我的研究',
+    qs: [
+      '改什么变量结果会变（异质性）？',
+      '作者承认的局限与未来方向？',
+      '继续深入最值得研究的三个问题？',
+      '和我的研究在哪里能接上（对照档案）？',
+    ],
+  },
+];
 
 const state = {
   tabId: null,
   page: null,       // content script 提取结果
   mode: 'skim',
+  level: 4,         // 审读等级 1-4
   analyzing: false,
   md: '',           // 当前 AI 输出
   saved: false,
   detailId: null,   // 笔记库正在查看的笔记
   notes: [],
+  askHistory: [],   // 追问对话 [{role, content}]
 };
 
 /* ================= 通用 ================= */
@@ -73,8 +133,10 @@ function esc(s) {
 function switchTab(name) {
   $$('.tab').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
   $('#tab-analyze').hidden = name !== 'analyze';
+  $('#tab-flow').hidden = name !== 'flow';
   $('#tab-notes').hidden = name !== 'notes';
   if (name === 'notes') renderNotesList();
+  if (name === 'flow') renderFlow();
 }
 
 $$('.tab').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
@@ -182,30 +244,88 @@ chrome.tabs.onUpdated.addListener((tabId, info) => {
   }
 });
 
-/* ================= 模式切换 ================= */
+/* ================= 模式切换与审读等级 ================= */
+
+function updateModeUI() {
+  $('#mode-desc').textContent = MODE_DESC[state.mode];
+  const isReview = state.mode === 'review';
+  $('#level-bar').hidden = !isReview;
+  $('#level-desc').hidden = !isReview;
+  if (isReview) {
+    $$('.level-btn').forEach((b) =>
+      b.classList.toggle('active', +b.dataset.level === state.level)
+    );
+    $('#level-desc').textContent = LEVEL_INFO[state.level].desc;
+    $('#btn-analyze .btn-label').textContent = `⚖️ 开始审读（${LEVEL_INFO[state.level].name}）`;
+  } else {
+    $('#btn-analyze .btn-label').textContent =
+      state.mode === 'skim' ? '⚡ 开始略读分析' : '📖 开始精读分析';
+  }
+  $('#short-text-warning').hidden = !(
+    state.mode !== 'skim' && state.page && state.page.textLength < 4000
+  );
+}
 
 $$('.mode-btn').forEach((b) =>
   b.addEventListener('click', () => {
     if (state.analyzing) return;
     state.mode = b.dataset.mode;
     $$('.mode-btn').forEach((x) => x.classList.toggle('active', x === b));
-    $('#mode-desc').textContent = MODE_DESC[state.mode];
-    $('#btn-analyze .btn-label').textContent =
-      state.mode === 'skim' ? '⚡ 开始略读分析' : '🔍 开始精读分析';
-    $('#short-text-warning').hidden = !(
-      state.mode === 'deep' && state.page && state.page.textLength < 4000
-    );
+    updateModeUI();
   })
 );
-$('#mode-desc').textContent = MODE_DESC.skim;
+$$('.level-btn').forEach((b) =>
+  b.addEventListener('click', () => {
+    if (state.analyzing) return;
+    state.level = +b.dataset.level;
+    updateModeUI();
+  })
+);
+
+/* ================= 审稿流程图 ================= */
+
+function renderFlow() {
+  const wrap = $('#flow-stages');
+  if (wrap.dataset.rendered) return;
+  wrap.dataset.rendered = '1';
+  wrap.innerHTML = FLOW_STAGES.map(
+    (s, i) => `
+    ${i > 0 ? '<div class="flow-arrow">↓</div>' : ''}
+    <div class="flow-stage">
+      <div class="flow-num">${s.num}</div>
+      <div class="flow-body">
+        <h4>${s.title}<span class="flow-tag">L${s.level}</span></h4>
+        <ul class="flow-qs">${s.qs.map((q) => `<li>${q}</li>`).join('')}</ul>
+        <button class="btn sm flow-start" data-level="${s.level}">
+          ▶ ${s.level === 4 ? 'L4 全审稿（含本阶段）' : `从这里开始审读（L${s.level}）`}
+        </button>
+      </div>
+    </div>`
+  ).join('');
+}
+
+$('#flow-stages').addEventListener('click', (e) => {
+  const btn = e.target.closest('.flow-start');
+  if (!btn) return;
+  state.level = +btn.dataset.level;
+  state.mode = 'review';
+  $$('.mode-btn').forEach((x) => x.classList.toggle('active', x.dataset.mode === 'review'));
+  updateModeUI();
+  switchTab('analyze');
+  analyze();
+});
 
 /* ================= AI 分析 ================= */
 
 function resetResultArea() {
   state.md = '';
   state.saved = false;
+  state.askHistory = [];
   $('#result-card').hidden = true;
   $('#meta-form').hidden = true;
+  $('#ask-card').hidden = true;
+  $('#ask-thread').innerHTML = '';
+  $('#ask-input').value = '';
   $('#result').innerHTML = '';
 }
 
@@ -244,7 +364,10 @@ async function analyze() {
   progress.hidden = false;
   const startTime = Date.now();
 
-  const messages = buildMessages(state.mode, state.page, settings.userBackground);
+  const messages = buildMessages(state.mode, state.page, {
+    profile: settings.profile,
+    level: state.level,
+  });
   const port = chrome.runtime.connect({ name: 'paperlens-ai' });
   port.postMessage({
     type: 'analyze',
@@ -259,8 +382,12 @@ async function analyze() {
   const finish = () => {
     state.analyzing = false;
     btn.disabled = false;
-    btn.querySelector('.btn-label').textContent =
-      state.mode === 'skim' ? '⚡ 重新略读分析' : '🔍 重新精读分析';
+    if (state.mode === 'review') {
+      btn.querySelector('.btn-label').textContent = `⚖️ 重新审读（${LEVEL_INFO[state.level].name}）`;
+    } else {
+      btn.querySelector('.btn-label').textContent =
+        state.mode === 'skim' ? '⚡ 重新略读分析' : '📖 重新精读分析';
+    }
     progress.hidden = true;
     $('#result-card').classList.remove('streaming');
     try { port.disconnect(); } catch (_) {}
@@ -276,8 +403,9 @@ async function analyze() {
       finish();
       $('#result').innerHTML = renderMarkdown(visibleMarkdown());
       $('#btn-copy-result').hidden = false;
+      $('#ask-card').hidden = false;
       fillMetaForm();
-      toast('分析完成 ✓', 'ok');
+      toast('分析完成 ✓ 可在下方继续追问', 'ok');
     } else if (msg.type === 'error') {
       finish();
       $('#result').innerHTML =
@@ -297,9 +425,107 @@ async function analyze() {
 
 $('#btn-analyze').addEventListener('click', analyze);
 $('#btn-copy-result').addEventListener('click', () => {
-  copyText(state.md).then((ok) =>
-    ok ? toast('已复制完整分析结果', 'ok') : toast('复制失败', 'err')
+  copyText(state.md + askAppendix()).then((ok) =>
+    ok ? toast('已复制完整分析结果（含追问）', 'ok') : toast('复制失败', 'err')
   );
+});
+
+/* ================= 开放式追问 ================= */
+
+function askAppendix() {
+  if (!state.askHistory.length) return '';
+  const parts = state.askHistory.map((h, i) =>
+    h.role === 'user' ? `**Q：${h.content}**` : h.content
+  );
+  return '\n\n---\n\n## 💬 追问记录\n\n' + parts.join('\n\n---\n\n');
+}
+
+function appendAskPair(question) {
+  const item = document.createElement('div');
+  item.className = 'ask-item';
+  item.innerHTML = `
+    <div class="ask-q">${esc(question)}</div>
+    <div class="ask-a"><div class="md-body"><span class="cursor-blink"></span></div></div>`;
+  $('#ask-thread').appendChild(item);
+  item.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  return item.querySelector('.ask-a .md-body');
+}
+
+async function ask() {
+  if (state.analyzing) return toast('请等待当前输出完成', 'err');
+  if (!state.page) return toast('请先打开并分析一篇论文', 'err');
+  const input = $('#ask-input');
+  const q = input.value.trim();
+  if (!q) return;
+  if (!state.md) toast('提示：尚未做过分析，将直接基于论文原文回答', '');
+
+  const settings = await getSettings();
+  if (!settings.apiKey) {
+    toast('请先在设置中配置 AI API Key', 'err');
+    chrome.runtime.openOptionsPage();
+    return;
+  }
+
+  input.value = '';
+  $('#ask-card').hidden = false;
+  const answerEl = appendAskPair(q);
+  state.analyzing = true;
+  $('#btn-ask').disabled = true;
+
+  const messages = buildAskMessages(
+    state.page,
+    state.md,
+    state.askHistory,
+    q,
+    settings.profile
+  );
+  const port = chrome.runtime.connect({ name: 'paperlens-ai' });
+  port.postMessage({
+    type: 'analyze',
+    config: {
+      baseUrl: settings.baseUrl,
+      apiKey: settings.apiKey,
+      model: settings.model,
+    },
+    messages,
+    maxTokens: 4000,
+  });
+
+  let acc = '';
+  const finishAsk = () => {
+    state.analyzing = false;
+    $('#btn-ask').disabled = false;
+    try { port.disconnect(); } catch (_) {}
+  };
+
+  port.onMessage.addListener((msg) => {
+    if (msg.type === 'delta') {
+      acc += msg.text;
+      const nearBottom =
+        $('#ask-thread').scrollHeight - $('#ask-card').scrollTop < 400;
+      answerEl.innerHTML = renderMarkdown(acc) + '<span class="cursor-blink"></span>';
+      if (nearBottom) answerEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    } else if (msg.type === 'done') {
+      answerEl.innerHTML = renderMarkdown(acc);
+      state.askHistory.push({ role: 'user', content: q });
+      state.askHistory.push({ role: 'assistant', content: acc });
+      finishAsk();
+    } else if (msg.type === 'error') {
+      answerEl.innerHTML = `<div class="result-error">追问失败：${esc(msg.error)}</div>`;
+      finishAsk();
+    }
+  });
+  port.onDisconnect.addListener(() => {
+    if (state.analyzing) {
+      answerEl.innerHTML = '<div class="result-error">连接中断，请重试。</div>';
+      finishAsk();
+    }
+  });
+}
+
+$('#btn-ask').addEventListener('click', ask);
+$('#ask-input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.isComposing) ask();
 });
 
 /* ================= 文献卡片 ================= */
@@ -339,6 +565,15 @@ function renderKwChips() {
 }
 $('#f-keywords').addEventListener('input', renderKwChips);
 
+function modeLabel(n) {
+  if (n.mode === 'review') return `审读·L${n.level || 4}`;
+  return n.mode === 'deep' ? '精读' : '略读';
+}
+
+function modeBadgeClass(n) {
+  return n.mode === 'review' ? 'review' : n.mode;
+}
+
 function collectNote() {
   const kws = $('#f-keywords')
     .value.split(/[,，]/)
@@ -347,6 +582,7 @@ function collectNote() {
   return {
     id: crypto.randomUUID(),
     mode: state.mode,
+    level: state.mode === 'review' ? state.level : undefined,
     url: $('#f-url').value.trim() || state.page?.url || '',
     title: $('#f-title').value.trim(),
     authors: $('#f-authors')
@@ -358,7 +594,7 @@ function collectNote() {
     keywords: kws,
     oneLiner: $('#f-oneliner').value.trim(),
     userNotes: $('#f-notes').value.trim(),
-    resultMarkdown: state.md,
+    resultMarkdown: state.md + askAppendix(),
     figures: (state.page?.figures || []).slice(0, 6),
     pageHost: state.page?.host || '',
   };
@@ -457,7 +693,7 @@ async function renderNotesList() {
       (n) => `
       <div class="card note-item">
         <div class="note-title">
-          <span class="badge ${n.mode === 'deep' ? 'deep' : 'skim'}">${n.mode === 'deep' ? '精读' : '略读'}</span>
+          <span class="badge ${modeBadgeClass(n)}">${modeLabel(n)}</span>
           ${esc(n.title || '未命名')}
         </div>
         <div class="note-meta">
@@ -524,7 +760,7 @@ function renderNoteDetail(note) {
   $('#note-detail-body').innerHTML = `
     <div class="card">
       <div class="detail-head">
-        <span class="badge ${note.mode === 'deep' ? 'deep' : 'skim'}">${note.mode === 'deep' ? '精读' : '略读'}</span>
+        <span class="badge ${modeBadgeClass(note)}">${modeLabel(note)}</span>
         <div class="detail-title">${esc(note.title || '未命名')}</div>
       </div>
       <div class="note-meta">
@@ -619,5 +855,6 @@ $('#btn-settings').addEventListener('click', () => chrome.runtime.openOptionsPag
 
 (async function init() {
   refreshNotesCount();
+  updateModeUI();
   loadCurrentPage();
 })();

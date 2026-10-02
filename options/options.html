@@ -51,10 +51,31 @@
 
     <!-- 研究背景 -->
     <section class="card">
-      <h2>🧑‍🔬 我的研究背景（用于精读模式「对我的启发」）</h2>
+      <h2>🧑‍🔬 我的研究者档案（用于精读「对我的启发」与审读第五类问题）</h2>
+      <p class="hint" style="margin-top:0">AI 审稿时会对照这份档案回答"这篇论文和我的研究在哪里能接上"。写得越具体，启发越贴合你的课题。</p>
       <div class="field">
-        <textarea id="userBackground" rows="4"
-          placeholder="例如：我是计算机视觉方向的研究生，目前在做小样本目标检测，关注数据增广与域适应方法，常用数据集 COCO/VOC…&#10;写得越具体，AI 给出的启发越贴合你的课题。"></textarea>
+        <label for="p-data">① 我有什么数据？（数据集、来源、规模、领域）</label>
+        <textarea id="p-data" rows="2" placeholder="例如：两段市级医院脱敏电子病历（约 12 万条）；自采问卷 3000 份；公开数据集 CFPS/CHFS…"></textarea>
+      </div>
+      <div class="field">
+        <label for="p-methods">② 我会什么类型的方法？（模型、统计、实验范式）</label>
+        <textarea id="p-methods" rows="2" placeholder="例如：面板固定效应、DID、结构方程；熟悉 PyTorch，做过梯度提升与生存分析…"></textarea>
+      </div>
+      <div class="field">
+        <label for="p-projects">③ 做过什么课题？（论文/项目一句话）</label>
+        <textarea id="p-projects" rows="2" placeholder="例如：本科毕设做了空气质量对呼吸科就诊的因果推断；在研项目：平台算法对商家定价的影响…"></textarea>
+      </div>
+      <div class="field">
+        <label for="p-short">④ 近期研究主线是什么？（3-6 个月内在攻的问题）</label>
+        <textarea id="p-short" rows="2" placeholder="例如：正在构建跨医院的外部验证 pipeline，卡在分布漂移的处理上…"></textarea>
+      </div>
+      <div class="field">
+        <label for="p-long">⑤ 长期的研究问题是什么？（贯穿你科研生涯的大问题）</label>
+        <textarea id="p-long" rows="2" placeholder="例如：观测数据下的因果识别如何在医疗场景落地；多智能体中的信用分配…"></textarea>
+      </div>
+      <div class="field">
+        <label for="userBackground">⑥ 其他背景补充（选填）</label>
+        <textarea id="userBackground" rows="2" placeholder="身份、导师方向、感兴趣的合作类型等"></textarea>
       </div>
     </section>
 

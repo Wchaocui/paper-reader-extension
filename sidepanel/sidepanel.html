@@ -21,10 +21,21 @@
 
   <nav class="tabs">
     <button class="tab active" data-tab="analyze">📖 阅读</button>
+    <button class="tab" data-tab="flow">🗺 审稿流程</button>
     <button class="tab" data-tab="notes">🗂 笔记库 <span id="notes-count" class="count-badge" hidden>0</span></button>
   </nav>
 
   <main>
+    <!-- ============ 审稿流程图页 ============ -->
+    <section id="tab-flow" class="tab-page" hidden>
+      <div class="card flow-intro">
+        <h3>🗺 批判性审稿流程</h3>
+        <p>像挑剔的同行评审一样读论文：五个阶段层层递进，每个判断都要有论文证据。点击任意阶段可从对应等级直接发起审读。</p>
+        <p class="flow-note">✍️ <b>反向使用（写/改论文）</b>：投稿前把自己当成审稿人，按这五个阶段自检——你的隐含假设被审稿人抓住了吗？样本边界配得上结论吗？哪条结果最不 robust？</p>
+      </div>
+      <div id="flow-stages" class="flow-stages"></div>
+    </section>
+
     <!-- ============ 阅读分析页 ============ -->
     <section id="tab-analyze" class="tab-page">
 
@@ -39,13 +50,21 @@
       </div>
 
       <div class="card mode-card">
-        <div class="mode-switch" role="tablist">
+        <div class="mode-switch mode-switch-3" role="tablist">
           <button class="mode-btn active" data-mode="skim">⚡ 略读</button>
-          <button class="mode-btn" data-mode="deep">🔍 精读</button>
+          <button class="mode-btn" data-mode="deep">📖 精读</button>
+          <button class="mode-btn" data-mode="review">⚖️ 审读</button>
         </div>
+        <div id="level-bar" class="level-bar" hidden>
+          <button class="level-btn active" data-level="1" title="只回答值不值得读">L1 快筛</button>
+          <button class="level-btn" data-level="2" title="加：挖隐含假设">L2 查假设</button>
+          <button class="level-btn" data-level="3" title="加：挑研究设计">L3 挑方法</button>
+          <button class="level-btn" data-level="4" title="全审稿：+结论边界+对我的启发">L4 全审稿</button>
+        </div>
+        <p id="level-desc" class="mode-desc level-desc" hidden></p>
         <p id="mode-desc" class="mode-desc"></p>
         <div id="short-text-warning" class="warning" hidden>
-          ⚠️ 当前页面正文较少（可能只是摘要页）。精读建议先打开发表商 HTML 全文页或 arXiv HTML 版（arxiv.org/html/编号）。
+          ⚠️ 当前页面正文较少（可能只是摘要页）。精读/审读建议先打开发表商 HTML 全文页或 arXiv HTML 版（arxiv.org/html/编号）。
         </div>
         <button id="btn-analyze" class="btn primary block">
           <span class="btn-label">⚡ 开始略读分析</span>
@@ -73,6 +92,18 @@
           </div>
         </div>
         <div id="result" class="md-body"></div>
+      </div>
+
+      <div id="ask-card" class="card ask-card" hidden>
+        <div class="card-title-row">
+          <h3>💬 就这篇论文继续追问</h3>
+          <span class="ask-hint">基于论文原文与刚才的分析回答</span>
+        </div>
+        <div id="ask-thread" class="ask-thread"></div>
+        <div class="ask-input-row">
+          <input id="ask-input" type="text" placeholder="例如：它的识别策略在XX场景下还成立吗？图表3的异常点怎么看？">
+          <button id="btn-ask" class="btn primary sm">追问</button>
+        </div>
       </div>
 
       <div id="meta-form" class="card meta-form" hidden>

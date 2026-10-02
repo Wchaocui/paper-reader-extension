@@ -23,6 +23,12 @@ async function load() {
   $('baseUrl').value = s.baseUrl || '';
   $('model').value = s.model || '';
   $('apiKey').value = s.apiKey || '';
+  const p = s.profile || {};
+  $('p-data').value = p.data || '';
+  $('p-methods').value = p.methods || '';
+  $('p-projects').value = p.projects || '';
+  $('p-short').value = p.shortTerm || '';
+  $('p-long').value = p.longTerm || '';
   $('userBackground').value = s.userBackground || '';
   $('gasUrl').value = s.gasUrl || '';
   updateHint();
@@ -138,6 +144,13 @@ $('btn-save').addEventListener('click', async () => {
     model: $('model').value.trim(),
     userBackground: $('userBackground').value,
     gasUrl: $('gasUrl').value.trim(),
+    profile: {
+      data: $('p-data').value.trim(),
+      methods: $('p-methods').value.trim(),
+      projects: $('p-projects').value.trim(),
+      shortTerm: $('p-short').value.trim(),
+      longTerm: $('p-long').value.trim(),
+    },
   });
   setResult($('save-result'), true, '✓ 已保存');
   setTimeout(() => ($('save-result').textContent = ''), 2400);
