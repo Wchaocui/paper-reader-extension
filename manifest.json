@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PaperLens 文献阅读助手",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "略读/精读双模式 AI 论文分析：快速提炼应用场景、核心问题、创新点与方法；精读生成论文框架、核心观点与个人启发，自动整理文献卡片，保存本地或同步 Google 表格/文档。",
   "minimum_chrome_version": "114",
   "permissions": [
