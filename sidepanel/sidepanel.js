@@ -94,6 +94,7 @@ const FLOW_STAGES = [
 
 const state = {
   tabId: null,
+  lockedTabId: null, // 固定的文献页标签：固定后侧栏不跟随标签页切换
   page: null,       // content script 提取结果
   mode: 'skim',
   level: 4,         // 审读等级 1-4
@@ -144,45 +145,60 @@ $$('.tab').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.
 
 /* ================= 页面识别 ================= */
 
-async function loadCurrentPage() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab || !tab.id) return;
-  state.tabId = tab.id;
+function renderLockUI() {
+  const locked = !!state.lockedTabId;
+  $('#pin-badge').hidden = !locked;
+  $('#lock-bar').hidden = !locked;
+}
+
+async function extractFromTab(tabId) {
+  let tab = null;
+  try {
+    tab = await chrome.tabs.get(tabId);
+  } catch (_) {
+    tab = null;
+  }
+  // 失败时保留原有固定文献与分析，仅在成功后才切换
+  const prevPage = state.page;
+  state.tabId = tabId;
   state.page = null;
 
   const card = $('#page-card');
-  const isPdf = /\.pdf(\?|#|$)/i.test(tab.url || '');
+  const isPdf = /\.pdf(\?|#|$)/i.test((tab && tab.url) || '');
   $('#page-host').textContent = new URL(tab.url || 'about:blank').host || '未知页面';
   $('#page-dot').className = 'dot';
   $('#page-title').textContent = '正在识别…';
   $('#page-stats').innerHTML = '';
   $('#page-abstract').hidden = true;
 
-  if (tab.url && !/^https?:/.test(tab.url)) {
+  if (!tab || (tab.url && !/^https?:/.test(tab.url))) {
+    state.page = prevPage;
     $('#page-dot').className = 'dot err';
     $('#page-title').textContent = isPdf
-      ? '浏览器内置 PDF 页暂不支持'
-      : '此页面类型不支持（请打开论文网页）';
-    card.classList.add('unsupported');
+      ? '浏览器内置 PDF 页暂不支持（仍固定原文献）'
+      : '此页面类型不支持，请打开论文网页（仍固定原文献）';
     return;
   }
 
   let resp;
   try {
-    resp = await chrome.tabs.sendMessage(tab.id, { type: 'EXTRACT_PAPER' });
+    resp = await chrome.tabs.sendMessage(tabId, { type: 'EXTRACT_PAPER' });
   } catch (_) {
     resp = null;
   }
   if (!resp || !resp.ok) {
+    state.page = prevPage;
     $('#page-dot').className = 'dot err';
     $('#page-title').textContent = isPdf
-      ? 'PDF 查看器无法提取文字'
-      : '无法读取此页面，请刷新后重试';
+      ? 'PDF 查看器无法提取文字（仍固定原文献）'
+      : '无法读取此页面，请刷新后重试（仍固定原文献）';
+    if (prevPage) toast('读取失败，仍保持固定原文献');
     return;
   }
 
   state.page = resp.data;
   state.saved = false;
+  state.lockedTabId = tabId;
   $('#page-dot').className = 'dot ok';
   $('#page-title').textContent = state.page.title || '（未识别到标题）';
   $('#page-stats').innerHTML = [
@@ -220,13 +236,32 @@ async function loadCurrentPage() {
     figCard.hidden = true;
   }
 
-  $('#short-text-warning').hidden = !(state.mode === 'deep' && state.page.textLength < 4000);
+  updateModeUI();
+  renderLockUI();
   resetResultArea();
 }
 
+async function loadCurrentPage() {
+  if (state.lockedTabId) return; // 已固定：不跟随标签页切换
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab || !tab.id) return;
+  await extractFromTab(tab.id);
+}
+
+// 顶部 ⟳：重新识别锁定的这一篇；未固定时识别当前页
 $('#btn-refresh').addEventListener('click', () => {
   if (state.analyzing) return toast('正在分析中，请稍候', 'err');
-  loadCurrentPage();
+  if (!state.lockedTabId) return loadCurrentPage();
+  extractFromTab(state.lockedTabId);
+});
+
+// 换一篇：主动读取当前激活页并重新固定
+$('#btn-load-current').addEventListener('click', async () => {
+  if (state.analyzing) return toast('正在分析中，请稍候', 'err');
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab || !tab.id) return;
+  await extractFromTab(tab.id);
+  toast('已切换并固定到当前页面 ✓', 'ok');
 });
 $('#figures-toggle').addEventListener('click', () => {
   const grid = $('#figures-grid');
@@ -235,13 +270,26 @@ $('#figures-toggle').addEventListener('click', () => {
   $('#figures-toggle').textContent = hidden ? '收起' : '展开';
 });
 
-// 用户切换标签页/刷新页面时自动重新识别
+// 切换标签页：仅在未固定时自动跟随当前页
 chrome.tabs.onActivated.addListener((info) => {
-  if (!state.analyzing && info.tabId !== state.tabId) loadCurrentPage();
+  if (state.lockedTabId || state.analyzing || info.tabId === state.tabId) return;
+  loadCurrentPage();
 });
+// 页面加载完成：固定页刷新后自动重取；未固定时跟随当前页
 chrome.tabs.onUpdated.addListener((tabId, info) => {
-  if (!state.analyzing && tabId === state.tabId && info.status === 'complete') {
+  if (state.analyzing || info.status !== 'complete') return;
+  if (state.lockedTabId) {
+    if (tabId === state.lockedTabId) extractFromTab(tabId);
+  } else if (tabId === state.tabId) {
     loadCurrentPage();
+  }
+});
+// 固定的文献页被关闭：数据仍保留在侧栏
+chrome.tabs.onRemoved.addListener((tabId) => {
+  if (tabId === state.lockedTabId) {
+    $('#lock-hint').textContent =
+      '原文献页已关闭：分析与追问记录仍保留，可继续保存笔记';
+    toast('文献页已关闭，阅读内容仍保留在此');
   }
 });
 
