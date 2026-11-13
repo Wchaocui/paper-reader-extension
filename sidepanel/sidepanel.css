@@ -18,6 +18,10 @@
 
 * { box-sizing: border-box; }
 
+/* 修复：类选择器设置的 display 会覆盖 HTML hidden 属性，
+   导致等级条/进度条等在隐藏后仍然可见 */
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   padding: 0;
