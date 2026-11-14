@@ -58,6 +58,15 @@
 3. 点击 **加载已解压的扩展程序**，选择本目录 `paper-reader-extension/`
 4. 工具栏出现 📖 图标即安装成功（Edge 同理：`edge://extensions`）
 
+## 🔄 如何更新到最新版
+
+以"已解压扩展"方式安装的插件**不会自动更新**，`chrome://extensions` 里的 ⟳ 按钮只是重载本地已有代码、不会拉取新版本。更新需两步：
+
+1. 在扩展所在目录执行 `git pull`（或从 [Releases](https://github.com/Wchaocui/paper-reader-extension/releases) 下载最新源码 zip 解压覆盖）
+2. 打开 `chrome://extensions` → 找到 PaperLens → 点卡片上的 **⟳ 重新加载**
+
+每次更新的内容见 [CHANGELOG.md](CHANGELOG.md)；更新后若设置页结构有变化（如 v1.2.0 新增研究者档案），重新加载后旧配置仍会保留。
+
 ## ⚙️ 配置（首次使用必读）
 
 1. 点击扩展图标打开侧栏 → 点右上角 **⚙** 进入设置
